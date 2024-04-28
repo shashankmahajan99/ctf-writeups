@@ -36,7 +36,7 @@ curl 'https://web-crypto.1337.sb/collection' \
 
 Response: ```{"data":"2J7FfeZP9l19Y6DnQSPGceisSiy6A3SJJXC5RKkFMWhI+Qq/qkeCxIOQqyF7ikis"}``` 
 
-# Let dive into the source code
+# Lets dive into the source code
 
 Since cmd/main.go is the entry point for any GoLang application, I started from there as well.
 ![main.go](images/main-go.png)
@@ -202,5 +202,7 @@ NOTE: Save the script output to a text file, to avoid non-ascii characters causi
 `
 
 I actually was the first to solve this. Many thanks to the CTF Admins for being so supportive without spoiling the fun of solving the challenge.
+
+![behind the scenes](images/behind_the_scenes.png)
 
 ![public announcement](images/discord-announcement.png)
