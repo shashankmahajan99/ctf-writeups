@@ -1,4 +1,4 @@
-# Challenge: misc/web-crypto
+*# Challenge: misc/web-crypto
 > Everyone knows W in web stands for crypto, so I made this totally secure secret collection.
 
 > https://web-crypto.1337.sb/
@@ -38,17 +38,17 @@ Response: ```{"data":"2J7FfeZP9l19Y6DnQSPGceisSiy6A3SJJXC5RKkFMWhI+Qq/qkeCxIOQqy
 
 # Lets dive into the source code
 
-Since cmd/main.go is the entry point for any GoLang application, I started from there as well.
+Since main.go is the entry point for any GoLang application, I started from there as well.
 ![main.go](images/main-go.png)
 
 Seeing the bcrypt hash ```$2a$04$5FGCCcPg1sELCWwnSqWYZemUYOqNIpjwo0l2KAw.1jmP0jLTEqcg.```, my first thought was head over to [CrackStation](https://crackstation.net/)
 
 ![crackstation result](images/crackstation-result.png)
 
-But it was not able to find any results. I thought about bruteforcing this myself in the background,
+But it was not able to find any results. I thought about bruteforcing this myself,
 but before I start to bruteforce lets actually see if this bcrypt is being used as a password or soeme other sensitive data or its just a rabbit hole.
 
-Lets continue navigating through the source code. Inside server.go, I can see there is a server being created in cmd/main.go using the gin framework.
+Lets continue navigating through the source code. Inside server.go, I can see there is a server being created using the gin framework.
 
 ![server.go](images/server-go.png)
 
@@ -76,7 +76,7 @@ Heading over to hashcat, I created a `hashes.txt` file with just the bcrypt hash
     hashcat --m 3200 -a 0 hashes.txt /opt/SecLists/Passwords/Leaked-Databases/rockyou.txt
 ```
 
-But after viewing the passwords hashcat was trying to brute force the bcrypt hash with it struck me these are not formatted correctly.
+But after viewing the passwords hashcat was trying to brute force the bcrypt hash with, it struck me these are not formatted correctly.
 
 ![initail hashcat run](images/initial_hashcat_run.png)
 
@@ -96,7 +96,7 @@ Now it was just time to run hashcat and let it do its thing. I added --status-ti
     hashcat --status --status-timer 2 -m 3200 -a 0 -r rules.rule hashes.txt /opt/SecLists/Passwords/Leaked-Databases/rockyou.txt
 ```
 
-After around 10minutes hashcat was able to crack the bcrypt hash and the `DEBUG` cookie we need to set was `camchito`.
+Hashcat was able to crack the bcrypt hash and the `DEBUG` cookie we need to set was `camchito`.
 
 ![cracked bcrypt hash](images/cracked_bcrypt_hash.png)
 
@@ -141,7 +141,7 @@ curl 'https://web-crypto.1337.sb/collection' \
 
 Here `aZaei75xwWWVY51kq17qyWClI76Zh5ZCYbo41yaE2lBGJ9lQGDb6K3W20tuNNndQppEH94UxAFs6hop6G9fVpcJxx6Q5UNPKjZYdaF3Y+ZYTTt4fKB0tEAOoND1u5RmtHIA6fqOWg7M2tnTutXGby07XjE+pfloz4OaCTPkpxnH0CW0Ys6tnlFWgYXkorYbHnZpMW7R+4DIMNbw3tK0vhQ==` was returned as an encrypted flag. But no `[DEBUG]` log was printed obviously. Here I had a gotcha moment and figured that it was a server log and I have no way of accessing it.
 
-Moving on, back in `Collections` function inside server/endpoints.go I saw that the flag can be encrypted with two different methods depending upon whether we send the `DEBUG` cookie or not.
+Moving on, back in `Collections` function inside server/endpoints.go I saw that the flag can be encrypted with two different methods depending upon whether we send the correct `DEBUG` cookie or not.
 
 So just for comparison I also fetched the encrypted flag without the debug cookie: `HmhqyMJYHWS4SEXoDvhDJ5iwtFfiFJXwaf1jSkVE0ENfHrWIGGiL8drk0ZWFJlmAynsAqaIKTMhspMbWBMP/5Hx/3iwCHbCYyJJhYdX7J5y9veQmiiQnVQLjv7ijTX2jPNSpET8sok6YPBh8BL/W9OJ5FQHkJXRGK2ETnYQjW8lYIybMTqTVFXxMi2sR8nH8Fmqgm1nJN53yA67KgtMhPA==`
 
@@ -161,26 +161,27 @@ In crypto/byte_key.go there is a vulnerability related to improper use of pointe
     }
 ```
 Lets see what Copilot has to say about this vulnerability:
-`Description:
+```
+Description:
 The vulnerability lies in the improper use of pointers in the Go language. In the loop where the bi variable is assigned to res[i], the same memory address is being assigned to all elements of res. This is because &bi gets the address of bi, and since bi is reused in each iteration, all elements in res end up pointing to the same memory location.
 
 Impact:
 This means that all elements in res will always have the same value, which is the value of the last byte read from rand.Read(ba). This significantly reduces the randomness and security of the generated key, making it easier for an attacker to predict or brute force the key.
-`
+```
 
 Also, I confirmed this with CTF admins and this was the right track and not just a rabbit hole.
 
 Lets recap the cryptographic vulnerability:
 
-> The `ByteKey.Generate` function has a vulnerability related to the improper use of pointers in Go. Instead of storing the actual byte values in the `res` slice, it stores the memory addresses of a single `bi` variable, causing all elements in `res` to point to the same memory location.
+- The `ByteKey.Generate` function has a vulnerability related to the improper use of pointers in Go. Instead of storing the actual byte values in the `res` slice, it stores the memory addresses of a single `bi` variable, causing all elements in `res` to point to the same memory location.
 
-> This vulnerability compromises the security of the encryption scheme that uses the `ByteKey` type. Instead of generating a unique key for each encryption operation, it effectively uses the same key for all encryptions, making it trivial to decrypt the ciphertexts.
+- This vulnerability compromises the security of the encryption scheme that uses the `ByteKey` type. Instead of generating a unique key for each encryption operation, it effectively uses the same key for all encryptions, making it trivial to decrypt the ciphertexts.
 
-> The vulnerability affects the `EncryptByteKey` function, which uses the vulnerable `ByteKey.Generate` function to generate keys.
+- The vulnerability affects the `EncryptByteKey` function, which uses the vulnerable `ByteKey.Generate` function to generate keys.
 
-> The `EncryptPrimeKey` function is not affected by this vulnerability because it uses the `PrimeKey.Generate` function, which does not have the same issue with pointers.
+- The `EncryptPrimeKey` function is not affected by this vulnerability because it uses the `PrimeKey.Generate` function, which does not have the same issue with pointers.
 
-> The reason why the `PrimeKey.Generate` function is not affected is that it correctly creates a new `PrimeKeyUnit` (a `big.Int`) for each element of the `res` slice, avoiding the issue of assigning the same memory address to multiple elements.
+- The reason why the `PrimeKey.Generate` function is not affected is that it correctly creates a new `PrimeKeyUnit` (a `big.Int`) for each element of the `res` slice, avoiding the issue of assigning the same memory address to multiple elements.
 
 # Solution
 
@@ -205,4 +206,4 @@ I actually was the first to solve this. Many thanks to the CTF Admins for being 
 
 ![behind the scenes](images/behind_the_scenes.png)
 
-![public announcement](images/discord-announcement.png)
+![public announcement](images/discord-announcement.png)*
