@@ -1,4 +1,4 @@
-*# Challenge: misc/web-crypto
+# Challenge: misc/web-crypto
 > Everyone knows W in web stands for crypto, so I made this totally secure secret collection.
 
 > https://web-crypto.1337.sb/
@@ -206,4 +206,4 @@ I actually was the first to solve this. Many thanks to the CTF Admins for being 
 
 ![behind the scenes](images/behind_the_scenes.png)
 
-![public announcement](images/discord-announcement.png)*
+![public announcement](images/discord-announcement.png)
